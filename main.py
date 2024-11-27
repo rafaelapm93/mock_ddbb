@@ -65,10 +65,10 @@ def create_employee(employee: EmployeeCreate, db=Depends(get_db)):
         raise HTTPException(status_code=400, detail="Error: " + str(e))
     return new_employee
 
-# GET endpoint to fetch an employee by employee_number
-@app.get("/employee/{employee_number}", response_model=EmployeeResponse)
-def get_employee(employee_number: str, db=Depends(get_db)):
-    employee = db.query(Employee).filter(Employee.employee_number == employee_number).first()
+# GET endpoint to fetch an employee by alis
+@app.get("/employee/{alias}", response_model=EmployeeResponse)
+def get_employee(alias: str, db=Depends(get_db)):
+    employee = db.query(Employee).filter(Employee.alias == alias).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
     return employee
