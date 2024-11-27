@@ -3,6 +3,8 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from fastapi.openapi.utils import get_openapi
+
 
 # Database configuration
 DATABASE_URL = "sqlite:///./test.db"  # Use SQLite for simplicity
@@ -71,7 +73,52 @@ def get_employee(employee_number: str, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Employee not found")
     return employee
 
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Employee API. Visit /docs for API documentation."}
+
+
 # OpenAPI JSON endpoint (automatically provided by FastAPI, but included for clarity)
 @app.get("/openapi.json")
-def get_openapi():
-    return app.openapi()
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title="Employee API",
+        version="1.0.0",
+        description="API for managing employee data.",
+        routes=app.routes,
+    )
+
+    # Fix ValidationError schema
+    components = openapi_schema.get("components", {}).get("schemas", {})
+    if "ValidationError" in components:
+        # Replace loc items with array of string references
+        components["ValidationError"]["properties"]["loc"] = {
+            "type": "array",
+            "items": {"type": "string"}
+        }
+        # Ensure no unsupported properties like anyOf/oneOf/allOf
+        if "anyOf" in components["ValidationError"]["properties"]["loc"]:
+            del components["ValidationError"]["properties"]["loc"]["anyOf"]
+
+    if "HTTPValidationError" in components:
+        # Fix HTTPValidationError schema
+        components["HTTPValidationError"]["properties"]["detail"] = {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/ValidationError"}
+        }
+
+    # Add required servers field
+    openapi_schema["servers"] = [
+        {"url": "https://mock-ddbb.onrender.com", "description": "Production server"}
+    ]
+
+    # Assign the updated schema back to the app
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+
