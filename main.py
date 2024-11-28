@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from fastapi.openapi.utils import get_openapi
-
+from typing import Optional
 
 # Database configuration
 DATABASE_URL = "sqlite:///./test.db"  # Use SQLite for simplicity
@@ -36,10 +36,20 @@ class EmployeeCreate(BaseModel):
     employee_number: str
 
 class EmployeeResponse(EmployeeCreate):
-    id: int
+    id: Optional[int]
+    name: Optional[str]
+    last_name: Optional[str]
+    alias: str
+    email: Optional[str]
+    phone_number: Optional[str]
+    employee_number: Optional[str]
 
     class Config:
         orm_mode = True
+
+class BooleanResponse(BaseModel):
+    response: bool
+
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -66,13 +76,14 @@ def create_employee(employee: EmployeeCreate, db=Depends(get_db)):
     return new_employee
 
 # GET endpoint to fetch an employee by alis
-@app.get("/employee/{alias}", response_model=EmployeeResponse)
+@app.get("/employee/{alias}", response_model=BooleanResponse)
 def get_employee(alias: str, db=Depends(get_db)):
-    employee = db.query(Employee).filter(Employee.alias == alias).first()
-    if not employee:
-        raise HTTPException(status_code=404, detail="Employee not found")
-    return employee
-
+    #employee = db.query(Employee).filter(Employee.alias == alias).first()
+    #if not employee:
+    #    raise HTTPException(status_code=404, detail="Employee not found")
+    #return employee
+    employee_exists = db.query(Employee).filter(Employee.alias == alias).first() is not None
+    return {"response": employee_exists}
 
 @app.get("/")
 def read_root():
@@ -121,4 +132,3 @@ def custom_openapi():
     return app.openapi_schema
 
 app.openapi = custom_openapi
-
